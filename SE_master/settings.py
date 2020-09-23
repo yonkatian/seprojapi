@@ -127,7 +127,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
-ALLOWED_HOSTS = ['localhost']
+ALLOWED_HOSTS = ['localhost', 'ntuseproj.herokuapp.com']
 
 LOGIN_URL=os.path.join(BASE_DIR,"seproj-master\public\login.html")
 MAX_CONTENT_LENGTH = 15
