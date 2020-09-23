@@ -12,6 +12,7 @@ django-heroku = "*"
 gunicorn = "*"
 psycopg2 = "*"
 django-cors-headers = "*"
+pillow = "*"
 
 [requires]
 python_version = "3.8"
