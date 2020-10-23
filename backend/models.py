@@ -1,6 +1,11 @@
 from django.db import models
 #taken from the website 
 from django.conf import settings 
+from django.contrib.auth.models import User
+
+
+
+
 
 
 # Create your models here.(Noted every changes you make to the class  we had to make migration and migrate inside the terminal)
@@ -9,35 +14,47 @@ from django.conf import settings
 User = settings.AUTH_USER_MODEL 
 
 
-
+class Profile(models.Model):
+    #orginally this is onetoone field but 
+    Userid= models.ForeignKey(User,on_delete=models.CASCADE,related_name='profile')
+    Hall = models.CharField(max_length=50)
+    
+    class Meta:
+        db_table='Profile'
 
 #This is your database Schema or MAP TO YOUR SQL
 #Content is the column therefore 
 
 class Post(models.Model):
     Postid = models.AutoField(primary_key=True)
-    Userid = models.ForeignKey(User,on_delete=models.CASCADE)
+    Userid = models.ForeignKey(User,on_delete=models.CASCADE ,related_name='posting')
     ItemName = models.TextField()
     Category = models.TextField()
     Description= models.TextField()
-    ImageId = models.ImageField()       
+    PostDate = models.DateField()
+    ImageId = models.TextField()       
 
     class Meta:
         db_table='Post'
 
+
 class Order(models.Model):
-    #this is best to be a text field
     OrderId = models.AutoField(primary_key=True)
     Postid = models.ForeignKey(Post,on_delete=models.CASCADE)
-    Userid = models.ForeignKey(User,on_delete=models.CASCADE)
+    req_Userid = models.ForeignKey(User,on_delete=models.CASCADE)
     Date = models.DateField()
     Time = models.TimeField()
+    Location = models.TextField(default='')
     MovingService = models.BooleanField(default=False)
     OrderConfirm = models.BooleanField(default=False)
 
     class Meta:
         db_table='Order'
 
+
+
+
+#------------------------------------   Ref Code------------------------------------------------------------------------------------------
 
 # class Tweet(models.Model):
 #     user = models.ForeignKey(User , on_delete=models.CASCADE) # basically form a relation with the AUTH_User model
