@@ -1,45 +1,79 @@
 # THIS WHERE THE API CALLED HAPPEN
 
-#Import Django Library
+#Import Django Library Some are kept just in case I need to use it 
 from django.shortcuts import render ,redirect
-from django.http import HttpResponse, Http404,JsonResponse
-from django.utils.http import is_safe_url
+from django.http import HttpResponse,JsonResponse
+
+# for not equals 
+from django.db.models import Q 
 
 from django.contrib.auth.models import User 
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings  #Import your setting from Django
 
-#User.object.get()
-
 
 #Import the rest-frame work Library
-from rest_framework.authentication import SessionAuthentication
 from  rest_framework.response import Response
-from  rest_framework.decorators import api_view ,authentication_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
-
-#Import the backend data  
-
-from .email import send_vertification_email
+from  rest_framework.decorators import api_view  
+from rest_framework.views import APIView
 
 
+
+from .Verifyaccount import send_vertification_email
 from .serializer import CreateUserSerailizer
-from  .serializer import LoginUserSeralizer
+from .serializer import LoginUserSeralizer
+from .serializer import getUsernameSeralizer
 
 
-#USE THIS TO ALLOW ONLY CERTAIN HOST  TO CALL THE APP define in SE_master.py
-ALLOWED_HOST = settings.ALLOWED_HOSTS
+from .serializer import PostItemSeralizer
+from .serializer import DeleteItemSeralizer
+from .serializer import SearchdetailSeralizer
+from .serializer import searchItemSeralizer
+from .serializer import ViewUserItemSeralizer
+from .serializer import MakeOrderSeralizer
+from .models import Post ,Order ,Profile
+from .Verifyaccount import send_vertification_email;
 
 #Administrator password is Unwanted1
-#user1 password is         Unwanted2
+#user2 password is         Unwanted2
+#user3 password is         Unwanted3
+
+#If not mention 0 mean API failed 1 mean API Pass 
+
+# To get the username base on the userid 
+#Since my list_view return the UID 
+#JSON Syntax 
+# {
+# 
+#  "Userid":2
+# }
+@api_view(['POST'] )
+def get_username(request,*args, **kwargs):
+    get_username_seralizer = getUsernameSeralizer()
+    uid = get_username_seralizer.get_id(request.data)
+    userobj = User.objects.get(pk=uid)
+    
+    data={
+        "Result": userobj.username
+    }
+
+    return Response(data,status=200)
+
+
 
 
 #Login APi the URL is at url.py 
 #Check the login get data via the URL
+#0= login fail  1=Pass
+#JSON Syntax 
+# {
+#    "username":"user2",
+#    "password":"Unwanted2"
+# }
 @api_view(['POST'] )
-def login(request,*args,**kwargs):
+def login(request,*args,   **kwargs):
     
-    Login_user_seralizer = LoginUserSeralizer(data=request.data)
+    Login_user_seralizer = LoginUserSeralizer()
 
     usercode =Login_user_seralizer.get_username(request.data)
     passcode = Login_user_seralizer.get_password(request.data)
@@ -51,18 +85,22 @@ def login(request,*args,**kwargs):
     return Response(data, status=200) 
 
 
+
+
+
+
 # API to create user 
 
 #Format to follow : CASE SENSETIVE
 # {
 # 	"username": "user2",
 # 	"password": "123",
-# 	"email": "2@2.com"
+# 	"email": "2@2.com",
+#   "Hall": " "
 # }
 
-#1= Sucess  0= Failure in REST/Serializer  -1= Email
+#1= Sucess  0= Failure in REST/Serializer  -1= Email Failure
 # HELPER METHOD usually it put on seperate File but Since only have 2 method I just leave it here 
-
 def check_userExist( userCode):
     try:
         User.objects.get(username=userCode)
@@ -85,7 +123,6 @@ def check_emailExist(emailCode):
 #get data via JSON 
 @api_view(['POST'] )
 def create_User(request,*args,**kwargs):
-#ss
     create_user_seralizer = CreateUserSerailizer(data=request.data)
     #Now come the hard part of sending the request.data into here
 
@@ -109,25 +146,200 @@ def create_User(request,*args,**kwargs):
         #IGNORE THE RED LINE if any 
         if create_user_seralizer.is_valid(raise_exception=True):
         #create_user_seralizer.save(is_active='False')
-            create_user_seralizer.create(request.data)
+            create_user_seralizer.createUser(request.data)
             data= {
             "Result": 1
             }
+            send_vertification_email(emailcode) 
             try:
-                user = User.objects.get(username=usercode)
-                send_vertification_email(user.email) 
+                send_vertification_email(emailcode) 
                 return Response(data, status=200) 
             except:
                 #if email FAILED For some funny reason 
                 return Response({"Result": -1}, status=500) 
 
         return Response({"Result": 0}, status=500) 
+           
+     
+
+
+
+
+
 
 
 #-----------------------------------------  CRUD Product Table-------------------------------------------------
 
+@api_view(['GET'])
+def list_view(request,*args ,**kwargs):
+    #Do not get the Administrator Post Item  
 
 
+    #Another way
+    qs = Post.objects.all().order_by('Userid')
+    seralizer = searchItemSeralizer(qs,many=True)
+    
+
+    return Response(seralizer.data ,status=200)
+
+
+#List the post belong to the User
+#JSON Format for list_userview
+# {
+#     "username": "user2"
+# }
+@api_view(['POST'])
+def list_user_view(request ,*args ,**kwargs):
+
+
+    list_user_seralizer = ViewUserItemSeralizer(data=request.data)
+    qs=None 
+    try:
+        userarg = list_user_seralizer.getusername(request.data)
+        userobj = User.objects.get(username=userarg)
+        qs = Post.objects.filter(Userid=userobj.pk)
+    except:
+        return Response({"Result": "Username not found"}, status=500) 
+    #qs = User.objects.filter(pk=userobj.pk)
+   
+    #set Many to true to return many value
+    seralizer = searchItemSeralizer(qs, many=True)
+    return Response(seralizer.data ,status=200)
+
+
+#JSON format
+# {
+# "searchType": "Item_Name/Category/Hall",
+# "searchArg" : "XXXXXX"
+#"searchOrder": "ASC,DESC"
+# }
+
+#Another way to define .. this is call class based vieW
+class search_post_Item(APIView ):
+    #if the API is a POST request
+    def post(self,request,format=None):
+        search_post_item_seralizer = SearchdetailSeralizer()
+        searchType = search_post_item_seralizer.getSearchType(request.data)
+        searchArg = search_post_item_seralizer.getSearchArg(request.data)
+        qs= None
+
+        if searchType=="ItemName":
+            
+            #there should be  a better way
+            qs=Post.objects.filter(ItemName__icontains=searchArg) 
+
+            seralizer =searchItemSeralizer(qs,many=True)
+            
+            return Response(seralizer.data ,status=200)
+
+
+        elif searchType =="Category":
+
+            qs =Post.objects.filter(Category__iexact=searchArg) 
+            seralizer =searchItemSeralizer(qs,many=True)
+            return Response(seralizer.data ,status=200)
+
+        elif searchType =='Hall':
+        #Hallobj = Profile.objects.get(Hall=searchArg)
+            
+           # keep thing simiple RAW SQL
+            qs= Post.objects.raw("SELECT * FROM Post as p INNER JOIN auth_user as u on p.Userid_id=u.id INNER JOIN Profile as pro on P.Userid_id= pro.Userid_id WHERE Hall=%s",[searchArg])
+            seralizer=searchItemSeralizer(qs,many=True)
+            return Response(seralizer.data ,status=200)
+
+
+        return Response({"Result": -1}, status=500) 
+
+
+    def get(self,request,format=None):
+        return Response({"Result": -1}, status=500) 
+
+
+
+#JSON format to POST Item
+#postid is the post 
+
+#Due to the model of Post and aut_user had a Many to  1 relation 
+#the model.seralizer need an User instance in that the case just pass in 1 which is the UID of the administrator
+#  {
+#    "Userid":1,
+#    "username": "user2",
+#    "ItemName":"Apple2",
+#    "Category":"Iphone",
+#    "Description":"NOT 4 SALE",
+#    "postDate":"2020-10-10",
+#    "ImageId": "Apple"
+#   }
+
+@api_view(['POST','GET'] )
+def postItem(request,*args, **kwargs):
+    create_post_seralizer = PostItemSeralizer(data=request.data)
+
+    if create_post_seralizer.is_valid(raise_exception=True):
+        #create_user_seralizer.save(is_active='False')
+        result_value=create_post_seralizer.CreatePost(request.data)
+
+        data= {
+        "Result": result_value
+        }
+    return Response(data, status=200) 
+
+
+
+#use this with list_user_view
+
+#JSON FORMAT
+#{
+#    "Postid" : 6
+#}
+
+@api_view(['POST','GET'] )
+def DeleteItem(request,*args, **kwargs):
+    Delete_post_seralizer = DeleteItemSeralizer()
+    resultvalue = Delete_post_seralizer.DeletePost(request.data)
+ 
+    
+    data= {
+    "Result": resultvalue
+    }
+    return Response(data, status=200) 
+
+
+
+
+#-------------------------------------------CRUD Order table -------------------------------
+#JSON format to POST Item
+#Userid just leave it 1 
+
+#Due to the model of Order and aut_user had a Many to  1 relation 
+#and Order to Post therefore Please follow the syntax case senstive
+#Postid is the postid of the item
+#userid Leave it at 1
+#Date format is YYYY-MM-DD"
+#Time hr:mm
+#movingService True or False
+#  {
+#     "Postid":5,
+#     "Userid":1,
+#     "username": "user2",
+#     "Date":"2020-12-10",
+#     "Time":"20:20",
+#     "location":"Sing",
+#     "movingService":"False/True"
+#  }
+
+@api_view(['POST','GET'] )
+def makeOrder(request,*args, **kwargs):
+
+    create_order_seralizer = MakeOrderSeralizer(data=request.data)
+
+    if create_order_seralizer.is_valid(raise_exception=True):
+        #create_user_seralizer.save(is_active='False')
+        result_value=create_order_seralizer.makeOrder(request.data)
+        data= {
+        "Result": result_value
+        }
+    return Response(data, status=200) 
 
 
 
