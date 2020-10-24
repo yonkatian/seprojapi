@@ -97,14 +97,18 @@ class SearchdetailSeralizer(serializers.Serializer):
 
     searchType = serializers.CharField(max_length=50)
     searchArg = serializers.CharField(max_length=50)
+    searchOrd = serializers.CharField(max_length=50)
     class Meta:
-      fields = ("searchType", "searchArg")
+      fields = ("searchType", "searchArg","searchOrd")
 
     def getSearchType(self,value):
         return value['searchType']
     
     def getSearchArg(self,value):
         return value['searchArg']
+    
+    def getSearchOrder(self,value):
+        return value['searchOrd']
 
 
 #----------------------- Make ORDER Seralizer ---------------------------------------------------------------
