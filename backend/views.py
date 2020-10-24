@@ -197,7 +197,7 @@ def list_user_view(request ,*args ,**kwargs):
     try:
         userarg = list_user_seralizer.getusername(request.data)
         userobj = User.objects.get(username=userarg)
-        qs = Post.objects.filter(Userid=userobj.pk)
+        qs = Post.objects.filter(Userid=userobj.pk).order_by("PostDate")
     except:
         return Response({"Result": "Username not found"}, status=500) 
     #qs = User.objects.filter(pk=userobj.pk)
@@ -209,46 +209,61 @@ def list_user_view(request ,*args ,**kwargs):
 
 #JSON format
 # {
-# "searchType": "Item_Name/Category/Hall",
-# "searchArg" : "XXXXXX"
-#"searchOrder": "ASC,DESC"
+# "searchType": "ItemName/Category/Hall",
+# "searchArg" : "XXXXXX",
+#"searchOrd": "ASC,DESC"
 # }
-
+#ASC=  Oldest First #DESC is latest 
 #Another way to define .. this is call class based vieW
 class search_post_Item(APIView ):
     #if the API is a POST request
     def post(self,request,format=None):
         search_post_item_seralizer = SearchdetailSeralizer()
+
         searchType = search_post_item_seralizer.getSearchType(request.data)
         searchArg = search_post_item_seralizer.getSearchArg(request.data)
+        searchOrder = search_post_item_seralizer.getSearchOrder(request.data)
+
         qs= None
 
-        if searchType=="ItemName":
-            
-            #there should be  a better way
-            qs=Post.objects.filter(ItemName__icontains=searchArg) 
-
-            seralizer =searchItemSeralizer(qs,many=True)
-            
-            return Response(seralizer.data ,status=200)
-
-
-        elif searchType =="Category":
-
-            qs =Post.objects.filter(Category__iexact=searchArg) 
-            seralizer =searchItemSeralizer(qs,many=True)
-            return Response(seralizer.data ,status=200)
-
-        elif searchType =='Hall':
-        #Hallobj = Profile.objects.get(Hall=searchArg)
-            
-           # keep thing simiple RAW SQL
-            qs= Post.objects.raw("SELECT * FROM Post as p INNER JOIN auth_user as u on p.Userid_id=u.id INNER JOIN Profile as pro on P.Userid_id= pro.Userid_id WHERE Hall=%s",[searchArg])
-            seralizer=searchItemSeralizer(qs,many=True)
-            return Response(seralizer.data ,status=200)
+        if searchOrder == "ASC":
+             if searchType=="ItemName":
+                    qs=Post.objects.filter(ItemName__icontains=searchArg).order_by("PostDate")
+                    seralizer =searchItemSeralizer(qs,many=True)
+                    return Response(seralizer.data ,status=200)
+             elif  searchType =="Category":
+                    qs =Post.objects.filter(Category__iexact=searchArg).order_by("PostDate")
+                    seralizer =searchItemSeralizer(qs,many=True)
+                    return Response(seralizer.data ,status=200)
+             elif searchType =="Hall":
+                    #Hallobj = Profile.objects.get(Hall=searchArg)
+                    # keep thing simiple RAW SQL
+                    qs= Post.objects.raw("SELECT * FROM Post as p INNER JOIN auth_user as u on p.Userid_id=u.id INNER JOIN Profile as pro on P.Userid_id= pro.Userid_id WHERE Hall=%s ORDER BY PostDate",[searchArg])
+                    seralizer=searchItemSeralizer(qs,many=True)
+                    return Response(seralizer.data ,status=200)
+                 
+        elif searchOrder == "DESC" :
+             if searchType=="ItemName":
+                    qs=Post.objects.filter(ItemName__icontains=searchArg).order_by("-PostDate")
+                    seralizer =searchItemSeralizer(qs,many=True)
+                    return Response(seralizer.data ,status=200)
+             elif  searchType =="Category":
+                    qs =Post.objects.filter(Category__iexact=searchArg).order_by("-PostDate") 
+                    seralizer =searchItemSeralizer(qs,many=True)
+                    return Response(seralizer.data ,status=200)
+             elif searchType =="Hall":
+                    #Hallobj = Profile.objects.get(Hall=searchArg)
+                    # keep thing simiple RAW SQL
+                    qs= Post.objects.raw("SELECT * FROM Post as p INNER JOIN auth_user as u on p.Userid_id=u.id INNER JOIN Profile as pro on P.Userid_id= pro.Userid_id WHERE Hall=%s ORDER BY PostDate DESC",[searchArg])
+                    seralizer=searchItemSeralizer(qs,many=True)
+                    return Response(seralizer.data ,status=200)
 
 
         return Response({"Result": -1}, status=500) 
+        
+
+
+  
 
 
     def get(self,request,format=None):
